@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detection Results - Gan2AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Reset some default browser styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: #EBEBEB; /* White background */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            justify-content: center;
+            align-items: center;
+            color: #333; /* Dark text color for contrast */
+        }
+
+       
+
+        #header-text h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            width: 100%;
+            margin-top: 40px;
+        }
+
+        #upload-container {
+            background-color: #001021; /* Blue background for container */
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            color: #ffffff;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
+
+        p {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+
+        #result img {
+            margin-top: 20px;
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-button {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px 30px;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            display: inline-block;
+        }
+
+        .glass-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        footer {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #777;
+        }
+        .glass-button:hover {
+            background-color: #00ffff; /* تدرج لون أزرق فاتح عند التمرير */
+            transform: translateY(-3px); /* تأثير رفع الزر عند التمرير */
+        }
+
+    </style>
+</head>
+<body>
+   
+    <main>
+        <div id="upload-container">
+            <h2>Detection Results</h2>
+            <p><strong>Fake Probability:</strong> {{ fake_prob }}</p>
+            <p><strong>Real Probability:</strong> {{ real_prob }}</p>
+            <div id="result">
+                <img src="{{ url_for('static', filename='chart.png') }}" alt="Prediction Chart">
+            </div>
+            <a href="{{ url_for('static', filename='chart.png') }}" download class="glass-button">Download Report</a>
+        </div>
+    </main>
+
+</body>
+</html>

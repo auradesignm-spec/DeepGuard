@@ -1,0 +1,8 @@
+.env*
+*.txt
+final_deepfake_model.keras
+*.keras
+uploads/
+reports/
+venv/
+__pycache__/
