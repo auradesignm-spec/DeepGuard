@@ -1,0 +1,5 @@
+{
+  "name": "DeepGuard - AI Deepfake Detection & Forensic Analysis",
+  "description": "Enterprise-grade deepfake detection and forensic analysis platform powered by deep learning and automated forensic reporting.",
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

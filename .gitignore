@@ -1,8 +1,40 @@
-.env*
-*.txt
-final_deepfake_model.keras
+# Environment variables
+.env
+.env.*
+*.env
+!.env.example
+
+# Models & Large Weights
 *.keras
+*.h5
+*.ckpt
+*.pt
+*.pth
+*.onnx
+
+# Uploads & Generated Reports
 uploads/
 reports/
-venv/
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/reports/*
+!backend/reports/.gitkeep
+
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.pytest_cache/
+
+# Node & Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
