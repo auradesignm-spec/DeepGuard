@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import settings
 from app.analysis_schema import new_analysis, set_section, validate_analysis
+from app.services.research import apply_research
 from app.detectors import registry
 from app.services.c2pa_check import check_c2pa
 from app.services.detector import (
@@ -230,6 +231,12 @@ def detect_image(file: UploadFile = File(...)):
 # ---------------------------------------------------------------------------
 
 _NOT_IMPLEMENTED_YET = "Section not implemented yet."
+_NOT_IMPLEMENTED_YET_AR = "هذا القسم لم يُنفَّذ بعد."
+# skip reasons are shown to the user, so they ship in both languages (m8-a)
+_NOT_IMPLEMENTED_DATA = {
+    "reason_en": _NOT_IMPLEMENTED_YET,
+    "reason_ar": _NOT_IMPLEMENTED_YET_AR,
+}
 
 
 def _safe_upload_name(name: Optional[str]) -> str:
@@ -449,15 +456,44 @@ def analyze_full(file: UploadFile = File(...)):
         reason=c2pa_card.get("reason"), error=c2pa_card.get("error"),
         data=c2pa_card.get("data"),
     )
-    set_section(record, "manipulation_map", "skipped", reason=_NOT_IMPLEMENTED_YET)
+    # 8. m5 research sections: real search links + rule-driven guidance
+    _step("research", lambda: apply_research(
+        record,
+        exif_data=exif_data,
+        quality_tier=quality_tier,
+        provenance_hit=provenance_hit,
+    ))
+    # a crashed research step must never leave a card stuck in "loading"
+    for _sid in (
+        "reverse_search", "links_on_web", "fact_check_monitor",
+        "location", "what_to_do_next", "further_investigation",
+    ):
+        if record["sections"][_sid].get("state") == "loading":
+            set_section(
+                record, _sid, "error",
+                error="Research step failed before this section was filled.",
+            )
+    for _sub in ("web_presence", "fact_check", "links", "location"):
+        if record["external"][_sub].get("state") == "loading":
+            record["external"][_sub] = {
+                "state": "error",
+                "error": "Research step failed before this card was filled.",
+            }
+    if record["external"].get("state") == "loading":
+        record["external"].update(
+            state="error", error="Research step failed before this card was filled.",
+        )
+
+    set_section(record, "manipulation_map", "skipped",
+                reason=_NOT_IMPLEMENTED_YET, data=_NOT_IMPLEMENTED_DATA)
     for sid in (
-        "spot_the_difference", "whats_in_image", "what_to_do_next",
-        "links_on_web", "fact_check_monitor", "reverse_search", "location",
-        "further_investigation", "how_we_know", "ask_about_image",
+        "spot_the_difference", "whats_in_image",
+        "how_we_know", "ask_about_image",
         "was_this_result_correct", "ai_visual_findings",
         "what_the_computer_sees",
     ):
-        set_section(record, sid, "skipped", reason=_NOT_IMPLEMENTED_YET)
+        set_section(record, sid, "skipped",
+                    reason=_NOT_IMPLEMENTED_YET, data=_NOT_IMPLEMENTED_DATA)
 
     contract = validate_analysis(record)
     if contract:

@@ -8,6 +8,7 @@ import ReportShell from "@/components/ReportShell";
 import VerdictCard from "@/components/VerdictCard";
 import ModelScoresCard from "@/components/ModelScoresCard";
 import ManipulationMapCard from "@/components/ManipulationMapCard";
+import ResearchCard from "@/components/ResearchCard";
 import NewsResultCard, { type NewsResult } from "@/components/NewsResultCard";
 import ScanAnimation from "@/components/ScanAnimation";
 import CommandBar from "@/components/CommandBar";
@@ -305,6 +306,7 @@ export default function DeepGuardDashboard() {
             <VerdictCard record={report} />
             <ModelScoresCard record={report} />
             <ManipulationMapCard record={report} imageUrl={imageUrl} />
+            <ResearchCard record={report} />
           </ReportShell>
         )}
 

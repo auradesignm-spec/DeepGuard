@@ -352,6 +352,12 @@ const ar = {
   rep_analyze_another: "حلّل صورة أخرى",
   rep_verdict_dot: "الحكم الحالي",
 
+  // Research card (m5)
+  res_open_link: "فتح الرابط في تبويب جديد",
+  res_query: "الاستعلام",
+  res_coords: "الإحداثيات",
+  res_rule: "مصدر الإرشاد",
+
   // Language toggle
 } as const;
 
@@ -684,6 +690,12 @@ dash_tagline: "Deepfake detection & media forensics",
 
   rep_analyze_another: "Analyze another image",
   rep_verdict_dot: "Current verdict",
+
+  // Research card (m5)
+  res_open_link: "Open link in a new tab",
+  res_query: "Query",
+  res_coords: "Coordinates",
+  res_rule: "Guidance source",
 };
 
 const dicts: Record<Lang, Record<DictKey, string>> = { ar, en };

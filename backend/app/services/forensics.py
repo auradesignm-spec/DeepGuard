@@ -117,6 +117,30 @@ def scan_metadata(img: Image.Image, raw: Optional[bytes]) -> Dict[str, Any]:
                     exif[key] = str(value).strip()
         gps = exif_obj.get_ifd(34853) if exif_obj else {}
         has_gps = bool(gps)
+        gps_coords: Optional[Dict[str, float]] = None
+        if has_gps:
+            def _to_deg(values):
+                try:
+                    d, m, s = float(values[0]), float(values[1]), float(values[2])
+                    return d + m / 60.0 + s / 3600.0
+                except Exception:
+                    return None
+
+            lat, lon = _to_deg(gps.get(2)), _to_deg(gps.get(4))
+            lat_ref, lon_ref = gps.get(1), gps.get(3)
+            if isinstance(lat_ref, bytes):
+                lat_ref = lat_ref.decode("utf-8", errors="ignore")
+            if isinstance(lon_ref, bytes):
+                lon_ref = lon_ref.decode("utf-8", errors="ignore")
+            if lat is not None and str(lat_ref or "N").upper().startswith("S"):
+                lat = -lat
+            if lon is not None and str(lon_ref or "E").upper().startswith("W"):
+                lon = -lon
+            if (
+                lat is not None and lon is not None
+                and -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0
+            ):
+                gps_coords = {"lat": round(lat, 6), "lon": round(lon, 6)}
 
         # Generator signatures in real metadata segments / raw bytes.
         generators: List[str] = []
@@ -134,6 +158,7 @@ def scan_metadata(img: Image.Image, raw: Optional[bytes]) -> Dict[str, Any]:
             "exif_present": bool(exif_obj),
             "exif": exif,
             "gps_present": has_gps,
+            "gps": gps_coords,
             "generator_signatures": [g for g in generators if g],
         }
         flag = bool(data["generator_signatures"])
