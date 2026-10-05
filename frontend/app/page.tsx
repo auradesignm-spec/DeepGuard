@@ -1,53 +1,69 @@
 "use client";
 
-import React, { useState } from "react";
-import { Shield, ShieldAlert, Cpu, Sparkles, Terminal, Activity, FileCheck, Layers, HelpCircle } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { Shield, ShieldAlert, Cpu, Sparkles, Activity, FileCheck, Layers, FileSearch, Newspaper } from "lucide-react";
 import UploadZone from "@/components/UploadZone";
-import ResultCard from "@/components/ResultCard";
-import MultiAspectChart from "@/components/MultiAspectChart";
-import ForensicReport from "@/components/ForensicReport";
-
-interface DetectionResult {
-  status: string;
-  real_prob: number;
-  fake_prob: number;
-  confidence: number;
-  multi_aspect_scores: {
-    lighting: number;
-    texture: number;
-    color_consistency: number;
-    background_artifacts: number;
-    facial_distortion: number;
-    [key: string]: number;
-  };
-  forensic_analysis: string;
-  report_id: string;
-}
+import ReportShell from "@/components/ReportShell";
+import VerdictCard from "@/components/VerdictCard";
+import ModelScoresCard from "@/components/ModelScoresCard";
+import ManipulationMapCard from "@/components/ManipulationMapCard";
+import NewsResultCard, { type NewsResult } from "@/components/NewsResultCard";
+import ScanAnimation from "@/components/ScanAnimation";
+import CommandBar from "@/components/CommandBar";
+import { useLang } from "@/lib/i18n";
+import type { AnalysisRecord } from "@/lib/analysis";
 
 export default function DeepGuardDashboard() {
+  const { t } = useLang();
+  const [mode, setMode] = useState<"image" | "news">("image");
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<DetectionResult | null>(null);
+  const [report, setReport] = useState<AnalysisRecord | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [newsResult, setNewsResult] = useState<NewsResult | null>(null);
   const [scanStep, setScanStep] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  useEffect(() => () => {
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+  }, [imageUrl]);
+
+  const resetReport = () => {
+    setReport(null);
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    setImageUrl(null);
+    setErrorMsg(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const runAnalysis = async (file: File) => {
+    const isNews = mode === "news";
     setIsLoading(true);
     setErrorMsg(null);
-    setScanStep("Pre-processing specimen (299×299 normalized tensor)...");
+    setReport(null);
+    setNewsResult(null);
+    setScanStep(isNews ? "Extracting text (OCR ar/en)..." : "Byte-level provenance scan...");
 
     try {
       const timer1 = setTimeout(() => {
-        setScanStep("Extracting multi-aspect spatial & frequency anomaly gradients...");
-      }, 700);
+        setScanStep(isNews ? "Analyzing manipulation tactics..." : "Detector-panel inference in progress...");
+      }, 900);
 
       const timer2 = setTimeout(() => {
-        setScanStep("Synthesizing GPT-4 Deepfake Forensic Report...");
-      }, 1400);
+        setScanStep(isNews ? "Cross-checking claims..." : "Forensic verdict synthesis...");
+      }, 2200);
 
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/v1/detect", {
+      // Fire the API call and the cinematic minimum together: the layered
+      // scan animation gets its full 5s run before any verdict is shown,
+      // even when the engine answers faster.
+      const minTheatreMs = 5000;
+      const minTheatre = new Promise((r) => setTimeout(r, minTheatreMs));
+      const startedAt = Date.now();
+
+      const response = await fetch(isNews ? "/api/analyze-news" : "/api/v1/analyze", {
         method: "POST",
         body: formData,
       });
@@ -55,13 +71,27 @@ export default function DeepGuardDashboard() {
       clearTimeout(timer1);
       clearTimeout(timer2);
 
+      const waitRemaining = Math.max(0, minTheatreMs - (Date.now() - startedAt));
+      if (waitRemaining > 0) {
+        setScanStep(isNews ? "Cross-checking claims..." : "Forensic verdict synthesis...");
+        await new Promise((r) => setTimeout(r, waitRemaining));
+      }
+      await minTheatre;
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || "Forensic analysis failed.");
       }
 
-      const data: DetectionResult = await response.json();
-      setResult(data);
+      if (isNews) {
+        const data: NewsResult = await response.json();
+        setNewsResult(data);
+      } else {
+        const data: AnalysisRecord = await response.json();
+        setReport(data);
+        if (imageUrl) URL.revokeObjectURL(imageUrl);
+        setImageUrl(URL.createObjectURL(file));
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
       setErrorMsg(msg);
@@ -72,6 +102,34 @@ export default function DeepGuardDashboard() {
   };
 
   const loadSampleSpecimen = async (isDeepfake: boolean) => {
+    if (mode === "news") {
+      // generate a sensational fake-news screenshot sample
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 640;
+        canvas.height = 300;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, 640, 300);
+          ctx.fillStyle = "#111111";
+          ctx.font = "bold 30px Arial";
+          ctx.fillText("URGENT!!! EXCLUSIVE LEAK", 40, 70);
+          ctx.font = "24px Arial";
+          ctx.fillText("Shocking scandal — sources confirm!", 40, 130);
+          ctx.fillStyle = "#cc0000";
+          ctx.fillText("share before they delete!!!", 40, 180);
+        }
+        canvas.toBlob((blob) => {
+          if (blob) {
+            runAnalysis(new File([blob], "sample_news_screenshot.png", { type: "image/png" }));
+          }
+        }, "image/png");
+      } catch (e) {
+        console.error(e);
+      }
+      return;
+    }
     try {
       // Generate synthetic sample canvas image
       const canvas = document.createElement("canvas");
@@ -107,78 +165,91 @@ export default function DeepGuardDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navigation Top Bar */}
-      <header className="border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_15px_rgba(0,242,254,0.4)]">
-              <Shield className="w-5 h-5 text-black font-black" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black tracking-wider text-lg text-white font-mono">
-                  DEEP<span className="text-cyan-400">GUARD</span>
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-400 border border-cyan-800/60">
-                  v2.0 PRO
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400 hidden sm:block">AI Deepfake Detection & Media Forensics Engine</p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3 text-xs">
-            <div className="hidden md:flex items-center space-x-2 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-slate-300 font-mono">Backend: FastAPI & Keras Active</span>
-            </div>
-            <a
-              href="https://github.com/auradesignm-spec/DeepGuard"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5"
-            >
-              <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-              <span>FastAPI Docs</span>
-            </a>
-          </div>
-        </div>
-      </header>
+      {/* Shared cyber command bar */}
+      <CommandBar variant="dashboard" />
 
       {/* Main Content Dashboard */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Mode toggle: image forensics / news misinformation */}
+        <div className="flex justify-center">
+          <div
+            role="tablist"
+            aria-label={t("mode_toggle_aria")}
+            dir="ltr"
+            className="relative inline-flex items-center gap-1 p-1 bg-[#080c10] border border-[#122b20] rounded-full"
+          >
+            {([
+              { id: "image", icon: FileSearch, key: "mode_image" as const },
+              { id: "news", icon: Newspaper, key: "mode_news" as const },
+            ]).map(({ id, icon: Icon, key }) => {
+              const on = mode === id;
+              return (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={on}
+                  type="button"
+                  onClick={() => setMode(id as "image" | "news")}
+                  className={`relative z-10 flex items-center gap-2 px-6 h-9 rounded-full text-[13px] font-semibold transition-all duration-300 ${
+                    on
+                      ? "bg-[#00ff9d] text-[#080c10] shadow-[0_0_16px_rgba(0,255,157,0.4)]"
+                      : "text-[#7da291] hover:text-[#8fffc9]"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {t(key)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Hero & Quick Specimen Demo Controls */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/20 text-cyan-400 text-xs font-semibold mb-3">
-              <Sparkles className="w-3.5 h-3.5" /> Next.js 14 + FastAPI + GPT-4 Forensic Pipeline
+            <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#1d4534] bg-[#0a1613]/80 text-[#3dffa0]/90 text-[11px] font-mono tracking-[0.1em] mb-3">
+              <Sparkles className="w-3.5 h-3.5" /> {mode === "news" ? t("news_badge") : t("dash_badge")}
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-              Media Forgery & Deepfake Inspection
+            <h1 className="font-display text-3xl sm:text-4xl font-bold text-white tracking-tight">
+              {mode === "news" ? t("news_h1") : t("dash_h1")}
             </h1>
-            <p className="text-slate-400 text-sm max-w-2xl mt-1">
-              Upload any image specimen to scan for GAN generation, diffusion inpainting, face-swap blending seams, and generate certified forensic reports.
+            <p className="text-[#7da291] text-sm max-w-2xl mt-1">
+              {mode === "news" ? t("news_h1_sub") : t("dash_h1_sub")}
             </p>
           </div>
 
           {/* Quick Demo Pre-load buttons */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => loadSampleSpecimen(true)}
-              disabled={isLoading}
-              className="px-3 py-2 rounded-xl bg-rose-950/30 hover:bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <ShieldAlert className="w-3.5 h-3.5 text-rose-400" /> Test Synthetic Demo
-            </button>
-            <button
-              type="button"
-              onClick={() => loadSampleSpecimen(false)}
-              disabled={isLoading}
-              className="px-3 py-2 rounded-xl bg-emerald-950/30 hover:bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <FileCheck className="w-3.5 h-3.5 text-emerald-400" /> Test Authentic Demo
-            </button>
+            {mode === "image" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => loadSampleSpecimen(true)}
+                  disabled={isLoading}
+                  className="px-3 py-2 bg-[#ff4d6a]/10 hover:bg-[#ff4d6a]/20 border border-[#ff4d6a]/35 text-[#ff8fa3] text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50 [clip-path:polygon(7px_0,100%_0,100%_calc(100%-7px),calc(100%-7px)_100%,0_100%,0_7px)]"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-[#ff4d6a]" /> {t("dash_demo_fake")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => loadSampleSpecimen(false)}
+                  disabled={isLoading}
+                  className="px-3 py-2 bg-[#3dffa0]/10 hover:bg-[#3dffa0]/20 border border-[#3dffa0]/35 text-[#8fffc9] text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50 [clip-path:polygon(7px_0,100%_0,100%_calc(100%-7px),calc(100%-7px)_100%,0_100%,0_7px)]"
+                >
+                  <FileCheck className="w-3.5 h-3.5 text-[#3dffa0]" /> {t("dash_demo_real")}
+                </button>
+              </>
+            )}
+            {mode === "news" && (
+              <button
+                type="button"
+                onClick={() => loadSampleSpecimen(false)}
+                disabled={isLoading}
+                className="px-3 py-2 bg-[#ffc857]/10 hover:bg-[#ffc857]/20 border border-[#ffc857]/35 text-[#ffe3a0] text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50 [clip-path:polygon(7px_0,100%_0,100%_calc(100%-7px),calc(100%-7px)_100%,0_100%,0_7px)]"
+              >
+                <Newspaper className="w-3.5 h-3.5 text-[#ffc857]" /> {t("news_demo")}
+              </button>
+            )}
           </div>
         </div>
 
@@ -188,96 +259,99 @@ export default function DeepGuardDashboard() {
         </section>
 
         {/* Loading Progress State */}
-        {isLoading && (
-          <div className="bg-slate-900/60 border border-cyan-500/30 rounded-2xl p-6 backdrop-blur-md text-center space-y-3 shadow-[0_0_30px_rgba(0,255,255,0.1)]">
-            <div className="flex justify-center items-center space-x-3">
-              <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-cyan-400 font-mono text-sm font-semibold tracking-wide">
-                {scanStep || "Processing image specimen..."}
-              </span>
-            </div>
-            <div className="max-w-md mx-auto bg-slate-950 rounded-full h-1.5 overflow-hidden">
-              <div className="bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 h-full w-2/3 animate-pulse rounded-full" />
-            </div>
-          </div>
-        )}
+        {isLoading && <ScanAnimation scanStep={scanStep} />}
 
         {/* Error Message */}
         {errorMsg && (
-          <div className="bg-rose-950/40 border border-rose-500/50 rounded-2xl p-4 text-rose-300 text-sm flex items-center gap-3">
-            <ShieldAlert className="w-5 h-5 text-rose-400 flex-shrink-0" />
+          <div className="bg-[#ff4d6a]/10 border border-[#ff4d6a]/45 p-4 text-[#ff8fa3] text-sm flex items-center gap-3">
+            <ShieldAlert className="w-5 h-5 text-[#ff4d6a] flex-shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {/* Results Section */}
-        {result && !isLoading && (
+        {newsResult && !isLoading && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Primary Result Gauge Card */}
-            <ResultCard
-              realProb={result.real_prob}
-              fakeProb={result.fake_prob}
-              confidence={result.confidence}
-            />
-
-            {/* Two-Column Grid: Multi-Aspect Chart & GPT-4 Forensic Report */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <MultiAspectChart scores={result.multi_aspect_scores} />
-              <ForensicReport
-                analysis={result.forensic_analysis}
-                reportId={result.report_id}
-                isFake={result.fake_prob > 0.5}
-              />
-            </div>
+            <NewsResultCard result={newsResult} />
           </div>
         )}
 
+        {report && !isLoading && (
+          <ReportShell
+            verdictLabel={
+              report.verdict.label
+                ? t(
+                    report.verdict.label === "AI Detected"
+                      ? "v_ai_detected"
+                      : report.verdict.label === "No AI Detected"
+                        ? "v_no_ai"
+                        : report.verdict.label === "Possible Edits"
+                          ? "v_possible_edits"
+                          : "v_investigate"
+                  )
+                : t("state_loading")
+            }
+            verdictTone={
+              report.verdict.label === "AI Detected"
+                ? "red"
+                : report.verdict.label === "No AI Detected"
+                  ? "green"
+                  : "amber"
+            }
+            imageUrl={imageUrl}
+            imageName={report.image.name}
+            onAnalyzeAnother={resetReport}
+          >
+            <VerdictCard record={report} />
+            <ModelScoresCard record={report} />
+            <ManipulationMapCard record={report} imageUrl={imageUrl} />
+          </ReportShell>
+        )}
+
         {/* Technical Features & Pipeline Specification */}
-        <section className="pt-6 border-t border-slate-800/80">
+        <section className="pt-6 border-t border-[#12281f]">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-slate-950/40 border border-slate-800/60 rounded-xl p-5 space-y-2">
-              <div className="flex items-center space-x-2 text-cyan-400 font-semibold text-sm">
+            <div className="evidence-card chamfer p-5 space-y-2">
+              <div className="flex items-center space-x-2 text-[#3dffa0] font-semibold text-sm">
                 <Cpu className="w-4 h-4" />
-                <h4>TensorFlow / Keras Classifier</h4>
+                <h4 className="font-display">{t("feat1_t")}</h4>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Normalized 299×299 tensor input trained on StyleGAN, FaceForensics++, and diffusion synthesized datasets.
-              </p>
+              <p className="text-xs text-[#7da291] leading-relaxed">{t("feat1_d")}</p>
             </div>
 
-            <div className="bg-slate-950/40 border border-slate-800/60 rounded-xl p-5 space-y-2">
-              <div className="flex items-center space-x-2 text-purple-400 font-semibold text-sm">
+            <div className="evidence-card chamfer p-5 space-y-2">
+              <div className="flex items-center space-x-2 text-[#59e8ff] font-semibold text-sm">
                 <Layers className="w-4 h-4" />
-                <h4>5-Aspect Forensic Spatial Matrix</h4>
+                <h4 className="font-display">{t("feat2_t")}</h4>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Cross-channel luminance gradient variance, high-frequency dermal noise, edge jitter, and geometric facial symmetry analysis.
-              </p>
+              <p className="text-xs text-[#7da291] leading-relaxed">{t("feat2_d")}</p>
             </div>
 
-            <div className="bg-slate-950/40 border border-slate-800/60 rounded-xl p-5 space-y-2">
-              <div className="flex items-center space-x-2 text-emerald-400 font-semibold text-sm">
+            <div className="evidence-card chamfer p-5 space-y-2">
+              <div className="flex items-center space-x-2 text-[#ffc857] font-semibold text-sm">
                 <Activity className="w-4 h-4" />
-                <h4>FastAPI & ReportLab Export</h4>
+                <h4 className="font-display">{t("feat3_t")}</h4>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Automated PDF document generation with cryptographic specimen IDs, executive summaries, and legal chain-of-custody notes.
-              </p>
+              <p className="text-xs text-[#7da291] leading-relaxed">{t("feat3_d")}</p>
             </div>
           </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950 py-6 mt-12 text-center text-xs text-slate-500">
+      <footer className="border-t border-[#12281f] bg-[#050a08] py-6 mt-12 text-xs text-[#7da291]">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-2">
-            <Shield className="w-4 h-4 text-cyan-500" />
-            <span className="font-mono text-slate-400">DeepGuard Forensic Platform &copy; {new Date().getFullYear()}</span>
+            <Shield className="w-4 h-4 text-[#3dffa0]" />
+            <span className="font-mono">DeepGuard &copy; {new Date().getFullYear()}</span>
           </div>
           <div className="flex items-center space-x-4">
-            <span>FastAPI Backend: <code className="text-cyan-400">/api/v1/detect</code></span>
-            <span>PDF Export: <code className="text-cyan-400">/api/v1/download-report</code></span>
+            <span>
+              {t("dash_footer_api")} <code className="text-[#3dffa0]" dir="ltr">/api/v1/detect</code>
+            </span>
+            <span>
+              {t("dash_footer_pdf")} <code className="text-[#3dffa0]" dir="ltr">/api/v1/download-report</code>
+            </span>
           </div>
         </div>
       </footer>

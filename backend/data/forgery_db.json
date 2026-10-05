@@ -1,0 +1,4 @@
+{
+  "entries": [],
+  "notes": "Known-forgery hash database. Admin-populated only. Each entry: {id, label, phash, dhash, hamming_source, reference, added_at}. label must be one of the fixed verdict labels; 'Possible Edits' is rejected until a real editing model is registered. Both pHash AND dHash must agree within the configured Hamming distance for a direct settle."
+}

@@ -1,0 +1,41 @@
+{
+  "status": "baseline_before_remap",
+  "commfor_state": "broken (152 missing keys)",
+  "weights_sha256": "b89f36275f3bf5e2b040eee36597a8f19db051bff9a473a9cf7b2466284fb387",
+  "device": "cpu",
+  "models_loaded": {
+    "face_v2": true,
+    "sdxl": true,
+    "dima806": true,
+    "commfor": true
+  },
+  "images": {
+    "chatgpt_edited_c2pa.png": {
+      "file_sha256": "5523d098cc19e6f0c9f24e1a7882d5cdf52d475ddce7a95243068e1487c3997d",
+      "commfor_p_fake": 0.43365398049354553,
+      "face_v2_fake": 0.5211808681488037,
+      "sdxl_fake": 0.002199048784406754,
+      "dima806_fake": 0.002061627649683983,
+      "fused_fake_prob": 0.92,
+      "fused_verdict": "fake"
+    },
+    "salman_recompressed_real.jpg": {
+      "file_sha256": "a73624a12e51d9b1e9088c4781cfed5df106a6d5711a8336788032687669f368",
+      "commfor_p_fake": 0.3596703112125397,
+      "face_v2_fake": 0.500048041343689,
+      "sdxl_fake": 0.9934019418617657,
+      "dima806_fake": 0.003378959235002768,
+      "fused_fake_prob": 0.2818,
+      "fused_verdict": "real"
+    },
+    "news_test.png": {
+      "file_sha256": "ec3dc813f8b00767d340c3532d8988374eda50b2ead9b7c93855c24b46b1fd9b",
+      "commfor_p_fake": 0.5133209824562073,
+      "face_v2_fake": 0.5863762497901917,
+      "sdxl_fake": 0.0001699759332830244,
+      "dima806_fake": 0.12437504529953003,
+      "fused_fake_prob": 0.1532,
+      "fused_verdict": "real"
+    }
+  }
+}

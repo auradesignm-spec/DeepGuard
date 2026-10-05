@@ -1,0 +1,29 @@
+{
+  "remap": false,
+  "images": {
+    "chatgpt_edited_c2pa.png": {
+      "commfor_p_fake": 0.43365398049354553,
+      "face_v2_fake": 0.5211808681488037,
+      "sdxl_fake": 0.002199048784406754,
+      "dima806_fake": 0.002061627649683983,
+      "fused_fake_prob": 0.92,
+      "fused_verdict": "fake"
+    },
+    "salman_recompressed_real.jpg": {
+      "commfor_p_fake": 0.3596703112125397,
+      "face_v2_fake": 0.500048041343689,
+      "sdxl_fake": 0.9934019418617657,
+      "dima806_fake": 0.003378959235002768,
+      "fused_fake_prob": 0.2818,
+      "fused_verdict": "real"
+    },
+    "news_test.png": {
+      "commfor_p_fake": 0.5133209824562073,
+      "face_v2_fake": 0.5863762497901917,
+      "sdxl_fake": 0.0001699759332830244,
+      "dima806_fake": 0.12437504529953003,
+      "fused_fake_prob": 0.1532,
+      "fused_verdict": "real"
+    }
+  }
+}

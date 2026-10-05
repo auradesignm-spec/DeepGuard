@@ -2,39 +2,500 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ================================================================
+   DEEPGUARD — "EVIDENCE VAULT" design system
+   Calm, restrained, luxury-dark: deep surfaces, hairline borders,
+   one green accent. No heavy glow, no noisy grids, no tech jargon.
+   ================================================================ */
+
 :root {
-  --background: 222 47% 6%;
-  --foreground: 210 40% 98%;
-  --card: 222 47% 9%;
-  --card-foreground: 210 40% 98%;
-  --border: 217 33% 18%;
+  --bg: #050a08;                /* scanner black with green undertone  */
+  --bg-elev: #081210;           /* elevated panels                     */
+  --bg-panel: #0a1613;          /* card interior                       */
+  --line: #12281f;              /* hairline borders                    */
+  --line-hot: #1d4534;          /* hovered / active hairline           */
+  --ink: #d7efe2;               /* primary text: warm phosphor white   */
+  --ink-dim: #7da291;           /* secondary text                      */
+  --ink-faint: #456355;         /* tertiary / labels                   */
+  --phosphor: #3dffa0;          /* signature green — truth/verdict     */
+  --phosphor-dim: #16995c;      /* dimmed phosphor                     */
+  --amber: #ffc857;             /* caution / uncertain                 */
+  --alarm: #ff4d6a;             /* fake / condemnation                 */
+  --scan-cyan: #59e8ff;         /* x-ray sweep accent                  */
+
+  /* next/font serves these families under generated names exposed as CSS
+     variables on <html> — referencing the literal names never matches. */
+  --font-display: var(--font-chakra), var(--font-plex-arabic), sans-serif;
+  --font-body: var(--font-plex-arabic), var(--font-chakra), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --chamfer: 10px;
+
+  /* ---- landing v2 palette (Evidence Vault, calm luxury-dark) ----
+     Adds the spec tokens alongside the legacy ones above; dashboards
+     keep using --phosphor/--ink, the landing uses these.             */
+  --accent: #2EE59D;
+  --accent-dim: #17b476;
+  --danger: #FF5C6C;
+  --warning: #F5B942;
+  --text: #F2F5F3;
+  --text-muted: #A3B0A9;
+  --surface: #111815;
+  --surface-2: #17201C;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --r: 14px;
+  --sec: 112px;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background-color: #060911;
-  color: #f1f5f9;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background-image: 
-    radial-gradient(circle at 50% 0%, rgba(0, 242, 254, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 100% 100%, rgba(255, 42, 95, 0.05) 0%, transparent 40%),
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
   min-height: 100vh;
+  overflow-x: clip;
+  line-height: 1.8;             /* unified Arabic body rhythm */
 }
 
-/* Custom scrollbars */
+h1, h2, h3 {
+  line-height: 1.3;             /* unified heading rhythm */
+}
+
+/* ---- justified long-form copy (Arabic paragraphs read cleaner flush) -- */
+.copy {
+  text-align: justify;
+  text-justify: inter-word;
+  line-height: 1.85;
+}
+
+/* ---- atmosphere: vignette + scanline grid + film grain ------------ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 120% 70% at 50% -12%, rgba(61, 255, 160, 0.075), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 88% 108%, rgba(89, 232, 255, 0.05), transparent 60%),
+    var(--bg);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* ---- typography helpers ------------------------------------------ */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* ---- chamfered evidence-card -------------------------------------- */
+/* Corner-cut panel with laser hairline. The one shape people remember. */
+.chamfer {
+  position: relative;
+  clip-path: polygon(
+    var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)
+  );
+}
+
+.chamfer-sm {
+  --chamfer: 7px;
+}
+
+.chamfer-lg {
+  --chamfer: 16px;
+}
+
+.evidence-card {
+  background:
+    linear-gradient(160deg, rgba(61, 255, 160, 0.035), transparent 38%),
+    var(--bg-panel);
+  border: 1px solid var(--line);
+  transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s ease;
+}
+
+.evidence-card:hover {
+  border-color: var(--line-hot);
+  box-shadow: 0 0 0 1px rgba(61, 255, 160, 0.08), 0 18px 50px -24px rgba(61, 255, 160, 0.18);
+  transform: translateY(-2px);
+}
+
+/* ---- laser buttons ------------------------------------------------- */
+.btn-phosphor {
+  position: relative;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #02150c;
+  background: linear-gradient(115deg, #53ffb4 0%, var(--phosphor) 55%, #21d67e 100%);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  transition: filter 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: 0 0 22px rgba(61, 255, 160, 0.28);
+}
+
+.btn-phosphor:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 36px rgba(61, 255, 160, 0.5);
+}
+
+/* ---- header glass bar (glassmorphism) -------------------------------- */
+.glass-bar {
+  background: linear-gradient(180deg, rgba(9, 20, 16, 0.74), rgba(5, 10, 8, 0.58));
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border-bottom: 1px solid rgba(61, 255, 160, 0.12);
+}
+
+/* ---- header CTA: quiet solid accent, soft shadow, no glow ------------- */
+.btn-cta {
+  position: relative;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #02150c;
+  border-radius: 12px;
+  background: var(--phosphor);
+  box-shadow: 0 8px 24px -12px rgba(46, 229, 157, 0.55);
+  transition: box-shadow 0.25s ease, filter 0.25s ease, transform 0.25s ease;
+}
+
+.btn-cta:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -12px rgba(46, 229, 157, 0.65);
+}
+
+/* ---- hero headline: silver → neon gradient ---------------------------- */
+.hero-gradient-text {
+  background: linear-gradient(112deg, #f6fffb 0%, #e2f5ea 34%, #a9ecc9 66%, #46ffb0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* ---- floating glass terminal ------------------------------------------ */
+.glass-terminal {
+  background: linear-gradient(168deg, rgba(17, 34, 27, 0.78), rgba(6, 12, 10, 0.86));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(61, 255, 160, 0.2);
+  box-shadow:
+    0 30px 80px -20px rgba(0, 0, 0, 0.75),
+    0 0 70px -16px rgba(61, 255, 160, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ---- alarm glow for the FAKE verdict line ------------------------------ */
+.glow-red {
+  color: #ff3d5e;
+  text-shadow:
+    0 0 7px rgba(255, 61, 94, 0.95),
+    0 0 20px rgba(255, 61, 94, 0.7),
+    0 0 46px rgba(255, 61, 94, 0.5);
+}
+
+/* ---- subtle tech dot grid ---------------------------------------------- */
+.dot-grid {
+  background-image: radial-gradient(rgba(61, 255, 160, 0.6) 1px, transparent 1.4px);
+  background-size: 27px 27px;
+}
+
+.btn-ghost {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--ink);
+  border: 1px solid var(--line-hot);
+  background: rgba(8, 18, 16, 0.6);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  transition: border-color 0.25s ease, color 0.25s ease, background 0.25s ease;
+}
+
+.btn-ghost:hover {
+  border-color: var(--phosphor);
+  color: var(--phosphor);
+  background: rgba(61, 255, 160, 0.06);
+}
+
+/* ---- tick labels (e.g. "01 /", "SIG-01") --------------------------- */
+.tick {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.32em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+/* ---- laser divider -------------------------------------------------- */
+.laser-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(61, 255, 160, 0.55), transparent);
+}
+
+/* ---- CRT scanline sweep for hero panels ----------------------------- */
+@keyframes crt-sweep {
+  0% { transform: translateY(-120%); }
+  100% { transform: translateY(1400%); }
+}
+
+.crt-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 90px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(61, 255, 160, 0.05) 42%,
+    rgba(61, 255, 160, 0.14) 50%,
+    rgba(61, 255, 160, 0.05) 58%,
+    transparent
+  );
+  animation: crt-sweep 7s linear infinite;
+  pointer-events: none;
+}
+
+/* ---- pulsing status dot --------------------------------------------- */
+@keyframes status-ping {
+  0% { box-shadow: 0 0 0 0 rgba(61, 255, 160, 0.55); }
+  70% { box-shadow: 0 0 0 7px rgba(61, 255, 160, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(61, 255, 160, 0); }
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--phosphor);
+  animation: status-ping 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ---- scroll progress rail (top of page) ------------------------------ */
+.scroll-rail {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 60;
+  background: transparent;
+  pointer-events: none;
+}
+
+.scroll-rail > div {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(61, 255, 160, 0.25), var(--phosphor));
+  box-shadow: 0 0 10px rgba(61, 255, 160, 0.7);
+  transition: width 0.08s linear;
+}
+
+/* ---- custom scrollbar ------------------------------------------------ */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #080c14;
+  background: #040806;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 4px;
+  background: #143024;
+  border-radius: 3px;
+  border: 2px solid #040806;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #0284c7;
+  background: #1f5540;
+}
+
+::selection {
+  background: rgba(61, 255, 160, 0.85);
+  color: #02150c;
+}
+
+/* ---- landing: section rhythm + legacy-compat headless classes -------- */
+.section-pad {
+  padding-block: var(--sec);
+}
+
+.btn-primary {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #02150c;
+  background: var(--accent);
+  border-radius: var(--r);
+  box-shadow: 0 8px 24px -12px rgba(46, 229, 157, 0.55);
+  transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -12px rgba(46, 229, 157, 0.65);
+}
+
+.btn-outline {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  border-radius: var(--r);
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(46, 229, 157, 0.06);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;}
+
+.card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 44px -28px rgba(0, 0, 0, 0.85);
+}
+
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--accent);
+  background: rgba(46, 229, 157, 0.08);
+  border: 1px solid rgba(46, 229, 157, 0.25);
+  border-radius: 999px;
+}
+
+.stat-card {
+  background: var(--surface);  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+
+.stat-card:hover {
+  border-color: var(--border-strong);
+}
+
+.step-dot {
+  position: relative;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--surface-2);
+  border: 1px solid rgba(46, 229, 157, 0.3);
+  border-radius: 999px;
+}
+
+.icon-chip {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(46, 229, 157, 0.08);
+  border: 1px solid rgba(46, 229, 157, 0.22);
+  color: var(--accent);
+}
+
+.mini-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;}
+
+.mini-bar > div {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+}
+
+.mock-panel {
+  background: linear-gradient(170deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.9);}
+
+.mock-panel:hover .mock-scan {
+  transform: scaleY(1);
+}
+
+.mock-scan {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 100%;
+  transform: scaleY(0);
+  transform-origin: top;
+  background: linear-gradient(180deg, transparent, rgba(46, 229, 157, 0.05) 45%, rgba(46, 229, 157, 0.12) 50%, rgba(46, 229, 157, 0.05) 55%, transparent);
+  transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.glass-bar {
+  background: rgba(10, 15, 13, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---- focus rings ------------------------------------------------------ */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ---- reduced motion --------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .crt-line,
+  .status-dot,
+  .mock-scan {
+    animation: none;
+  }
+  .mock-scan {
+    transform: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
 }

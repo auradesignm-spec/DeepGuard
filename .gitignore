@@ -11,6 +11,20 @@
 *.pt
 *.pth
 *.onnx
+*.safetensors
+
+# Runtime logs & one-off fix scripts
+*.log
+frontend/_fix*.py
+frontend/tmp/
+
+# IDE / agent workspace metadata
+.idea/
+.agents/
+.freebuff/
+.planning/
+backend/models/ocr/ar_*.onnx
+backend/models/ocr/ar_dict.txt
 
 # Uploads & Generated Reports
 uploads/
@@ -19,6 +33,10 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 backend/reports/*
 !backend/reports/.gitkeep
+
+# Sieve scrape session state and downloaded files (runtime)
+backend/state/
+backend/downloads/
 
 # Python
 __pycache__/

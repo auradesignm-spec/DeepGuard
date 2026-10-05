@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "rules_version": "1.0",
+  "updated_at": "2026-10-04",
+  "notes": "Verdict ENGINE rules only. Model weights and model decision thresholds are deliberately NOT configurable here; changes to them may only be written to verdict_config.proposed.json (by scripts/calibrate.py) and applied after explicit operator approval.",
+
+  "escalation": {
+    "min_agreeing_signals": 2,
+    "min_working_generation_models": 2,
+    "single_model_decides": false,
+    "algorithmic_checks_max_verdict": "Investigate",
+    "possible_edits_requires_editing_model": true
+  },
+
+  "clearance": {
+    "min_clearing_models": 2,
+    "max_model_flags_allowed": 0,
+    "max_forensic_flags_allowed": 0
+  },
+
+  "one_way_signals": {
+    "authenticity_blocks_escalation": true,
+    "authenticity_signal_ids": [
+      "exif_camera_consistent",
+      "known_camera_fingerprint",
+      "trusted_c2pa_authentic"
+    ]
+  },
+
+  "direct_settle": {
+    "known_forgery_hash": {
+      "enabled": true,
+      "requires_all": ["phash", "dhash"],
+      "max_hamming": 4
+    },
+    "c2pa_generation": { "enabled": true },
+    "fact_check_article_match": { "enabled": true }
+  },
+
+  "verdict_labels": ["AI Detected", "Possible Edits", "Investigate", "No AI Detected"],
+  "axes": ["ai_generation", "editing_check", "source_check"],
+
+  "calibration": {
+    "proposed_output": "verdict_config.proposed.json",
+    "auto_apply": false
+  },
+  "feedback": {
+    "auto_tune_thresholds": false
+  }
+}

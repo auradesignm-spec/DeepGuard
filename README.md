@@ -14,7 +14,7 @@ DeepGuard/
 │   │   ├── main.py                # FastAPI entry point & CORS configuration
 │   │   ├── config.py              # Environment variables & Settings (pydantic-settings)
 │   │   ├── services/
-│   │   │   ├── detector.py        # Model loading (auradesignm/deepfake-detection-keras) & Inference
+│   │   │   ├── detector.py        # v3.1 engine: C2PA provenance scan + BlazeFace face-crop + ensemble (Deep-Fake-Detector-v2, sdxl-detector, Community Forensics CVPR'25) + real ELA/noise forensic metrics
 │   │   │   ├── gpt_analyzer.py    # OpenAI GPT-4 Deepfake Forensic Report generation
 │   │   │   └── pdf_generator.py   # ReportLab PDF Generation
 │   │   └── api/
@@ -26,7 +26,8 @@ DeepGuard/
 ├── frontend/                      # Next.js 14+ App Router + Tailwind CSS Dashboard
 │   ├── app/
 │   │   ├── layout.tsx             # Root layout with dark cybersecurity theme
-│   │   ├── page.tsx               # Main Forensic Dashboard Interface
+│   │   ├── page.tsx               # Main Forensic Dashboard Interface (ScanAnimation, v3.0 PRO badge)
+│   │   ├── landing/page.tsx       # Cyber-themed landing page (radar, signal stack, pipeline)
 │   │   └── api/                   # Server-side API proxy & offline fallback
 │   ├── components/
 │   │   ├── UploadZone.tsx         # Drag & Drop File Upload Specimen Component
@@ -109,3 +110,42 @@ Downloads the generated ReportLab PDF forensic document with full evidentiary me
 - Zero persistent storage of biometric data without user authorization.
 - Cryptographic hashing and path-traversal mitigation for report retrieval.
 - Strict `.gitignore` enforcement avoiding committed weights, secrets, and transient uploads.
+
+---
+
+## Sieve Scrape API (optional, server-side)
+
+Article/source scraping for the news pipeline comes from the Sieve scrape API.
+It is optional: with `SIEVE_API_KEY` unset, every `/api/v1/sieve/*` endpoint
+answers 503 and nothing else in the app changes.
+
+**1. Create the key with a device login (approve it yourself in a browser):**
+
+```bash
+cd backend
+python scripts/sieve_device_login.py
+```
+
+The script shows a verification link and a short user code, then writes the
+returned key into `backend/.env` as `SIEVE_API_KEY`. It never prints the key.
+You can instead create one in Sieve -> Settings -> API keys and set
+`SIEVE_API_KEY=dc_sk_...` in `backend/.env` yourself.
+
+**2. Run one live scrape (spends credits):**
+
+```bash
+cd backend
+python scripts/sieve_scrape.py --instruction "Extract the text and author of each quote" --url https://quotes.toscrape.com
+```
+
+**3. Endpoints:** `POST /api/v1/sieve/scrapes` (202), `GET /api/v1/sieve/scrapes/{id}`,
+`POST /api/v1/sieve/scrapes/{id}/messages`, `GET /api/v1/sieve/scrapes`,
+`GET /api/v1/sieve/scrapes/{id}/files/{name}`. Sessions are persisted under
+`backend/state/sieve/` so a restart resumes polling from the stored id instead
+of starting a duplicate (billable) run.
+
+**Settings:** `SIEVE_API_KEY`, `SIEVE_BASE_URL` (default `https://scrape.usesieve.com`),
+`SIEVE_COMPLIANCE_MODE` (default `regular`; `yolo` relaxes the site-access policy).
+
+The key grants full account access, so keep it server-side - never in a browser
+bundle, a log, or git.
