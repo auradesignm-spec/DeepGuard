@@ -1,10 +1,11 @@
 import logging
 import os
 import io
+import math
 import struct
 import numpy as np
 from PIL import Image
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from app.config import settings
 
@@ -81,6 +82,15 @@ _LAST_FACE_FOUND: bool = False
 # channel for scoring/calibration (m2/m4); fusion behavior is untouched.
 _LAST_VOTES: Dict[str, float] = {}
 
+# Display-only side channels for the UI details panel (m8). Never read by
+# the fusion math or the verdict engine.
+_LAST_DEFAULT_VOTES: set = set()
+_LAST_COMMFOR_LOGIT: Optional[float] = None
+_LAST_FACE_COUNT: Optional[int] = None
+_LAST_CROP_COUNT: Optional[int] = None
+# Single-slot flag the inference helpers set right after producing a vote.
+_LAST_VOTE_WAS_DEFAULT: bool = False
+
 
 def last_votes() -> Dict[str, float]:
     """Per-detector fake probabilities observed in the last analysis.
@@ -100,6 +110,26 @@ def last_audit() -> List[str]:
 def last_quality() -> Dict:
     """Quality-gate assessment of the last analyzed specimen."""
     return _LAST_QUALITY
+
+
+def last_default_votes() -> set:
+    """Ids whose last vote was a failure default (0.5 neutral) — display only."""
+    return set(_LAST_DEFAULT_VOTES)
+
+
+def last_commfor_logit() -> Optional[float]:
+    """Raw CommFor logit (pre-sigmoid) from the last analysis; None if unavailable."""
+    return _LAST_COMMFOR_LOGIT
+
+
+def last_face_count() -> Optional[int]:
+    """Faces BlazeFace detected in the last analysis (None = detection never ran)."""
+    return _LAST_FACE_COUNT
+
+
+def last_crop_count() -> Optional[int]:
+    """Face crops actually fed to the face specialist (0/1; None = never ran)."""
+    return _LAST_CROP_COUNT
 
 
 # ============================================================================
@@ -397,11 +427,26 @@ GLOBAL_COMMFOR_DETECTOR = load_commfor_detector()
 
 
 def _commfor_prob(model, img: Image.Image) -> float:
-    """Community Forensics fake probability; 0.5 on failure (neutral vote)."""
+    """Community Forensics fake probability; 0.5 on failure (neutral vote).
+
+    Reads the RAW logit with a single forward pass and derives
+    p = sigmoid(logit) — numerically the same vote model.prob_fake produced,
+    while the raw logit becomes available for the UI details panel.
+    """
+    global _LAST_COMMFOR_LOGIT, _LAST_VOTE_WAS_DEFAULT
     try:
-        return model.prob_fake(img)
+        logit = float(model.logit(img))
+        _LAST_COMMFOR_LOGIT = logit
+        _LAST_VOTE_WAS_DEFAULT = False
+        # Numerically stable sigmoid.
+        if logit >= 0:
+            return 1.0 / (1.0 + math.exp(-logit))
+        p = math.exp(logit)
+        return p / (1.0 + p)
     except Exception as e:
         logger.error("CommFor inference error: %s", e)
+        _LAST_COMMFOR_LOGIT = None
+        _LAST_VOTE_WAS_DEFAULT = True
         return 0.5
 
 
@@ -454,6 +499,8 @@ def _crop_faces(img: Image.Image) -> Tuple[Image.Image, bool]:
     were trained on full scenes, so they keep the full frame. The flag lets
     the arbiter demote the face vote when no face was actually localized.
     """
+    global _LAST_FACE_COUNT
+    _LAST_FACE_COUNT = 0
     try:
         detector = _get_face_detector()
         if detector is None:
@@ -462,6 +509,7 @@ def _crop_faces(img: Image.Image) -> Tuple[Image.Image, bool]:
         rgb = np.array(img.convert("RGB"))
         mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         result = detector.detect(mp_img)
+        _LAST_FACE_COUNT = len(result.detections)
         if not result.detections:
             return img, False
         # Largest (highest-confidence, biggest area) detection wins
@@ -706,6 +754,8 @@ def _label_probs(detector, img: Image.Image) -> Tuple[float, float]:
     3-class models), then normalizes. Returns (0.5, 0.5) on inference failure
     so one broken model cannot swing the ensemble alone.
     """
+    global _LAST_VOTE_WAS_DEFAULT
+    _LAST_VOTE_WAS_DEFAULT = False
     fake = 0.0
     real = 0.0
     try:
@@ -725,6 +775,7 @@ def _label_probs(detector, img: Image.Image) -> Tuple[float, float]:
             return fake / total, real / total
     except Exception as pred_err:
         logger.error("Inference error [%s]: %s", detector.model.name_or_path, pred_err)
+    _LAST_VOTE_WAS_DEFAULT = True
     return 0.5, 0.5
 
 
@@ -788,6 +839,14 @@ def analyze_image_forgery(
         img = Image.open(image_input)
     img.load()
 
+    # Reset the display-only side channels for this specimen (never fusion
+    # inputs).
+    global _LAST_DEFAULT_VOTES, _LAST_COMMFOR_LOGIT, _LAST_FACE_COUNT, _LAST_CROP_COUNT
+    _LAST_DEFAULT_VOTES = set()
+    _LAST_COMMFOR_LOGIT = None
+    _LAST_FACE_COUNT = None
+    _LAST_CROP_COUNT = None
+
     file_size = None
     try:
         if raw_bytes:
@@ -830,19 +889,28 @@ def analyze_image_forgery(
     face_found = False
     if GLOBAL_DETECTOR is not None:
         face_crop, face_found = _crop_faces(img)  # tight crop for the face specialist
+        _LAST_CROP_COUNT = 1 if face_found else 0
         f1, _ = _label_probs(GLOBAL_DETECTOR, face_crop)
         votes["face_v2"] = f1
+        if _LAST_VOTE_WAS_DEFAULT:
+            _LAST_DEFAULT_VOTES.add("face_v2")
 
     if GLOBAL_SECONDARY_DETECTOR is not None:
         f2, _ = _label_probs(GLOBAL_SECONDARY_DETECTOR, img)
         votes["sdxl"] = f2
+        if _LAST_VOTE_WAS_DEFAULT:
+            _LAST_DEFAULT_VOTES.add("sdxl")
 
     if GLOBAL_COMMFOR_DETECTOR is not None:
         votes["commfor"] = _commfor_prob(GLOBAL_COMMFOR_DETECTOR, img)
+        if _LAST_VOTE_WAS_DEFAULT:
+            _LAST_DEFAULT_VOTES.add("commfor")
 
     if GLOBAL_QUATERNARY_DETECTOR is not None:
         f4, _ = _label_probs(GLOBAL_QUATERNARY_DETECTOR, img)
         votes["dima806"] = f4
+        if _LAST_VOTE_WAS_DEFAULT:
+            _LAST_DEFAULT_VOTES.add("dima806")
 
     if not votes:
         fake_prob, real_prob = 0.5, 0.5

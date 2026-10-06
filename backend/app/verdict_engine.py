@@ -296,6 +296,28 @@ def evaluate(
     has_disagreement = FLAG_BAND in calls and CLEAR_BAND in calls
     disagreement_out = disagreement if has_disagreement else []
 
+    # ---- outlier badge (display-only; consumed by the scores UI) ----
+    # Majority is decided among DECISIVE calls only (flag/clear): an
+    # "uncertain" model neither votes for the majority nor can be branded an
+    # outlier. A tie between decisive camps (or a single decisive camp)
+    # yields no majority, so nobody gets the badge.
+    decisive_counts: Dict[str, int] = {}
+    for d in disagreement:
+        if d["call"] in (FLAG_BAND, CLEAR_BAND):
+            decisive_counts[d["call"]] = decisive_counts.get(d["call"], 0) + 1
+    majority_call: Optional[str] = None
+    if decisive_counts:
+        top = max(decisive_counts.values())
+        leaders = [c for c, n in decisive_counts.items() if n == top]
+        if len(leaders) == 1 and len(decisive_counts) > 1:
+            majority_call = leaders[0]
+    for d in disagreement:
+        d["outlier"] = (
+            majority_call is not None
+            and d["call"] in (FLAG_BAND, CLEAR_BAND)
+            and d["call"] != majority_call
+        )
+
     label: Optional[str] = None
     rule_id: Optional[str] = None
     why_rule: Dict[str, str] = {}

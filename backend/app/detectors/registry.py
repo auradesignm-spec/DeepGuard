@@ -111,8 +111,8 @@ DETECTORS: Tuple[DetectorSpec, ...] = (
     ),
     DetectorSpec(
         id="dima806",
-        label_en="Independent deepfake ViT",
-        label_ar="كاشف التزييف المستقل",
+        label_en="Independent generation detector",
+        label_ar="كاشف توليد مستقل",
         kind=KIND_GENERATION,
         source="dima806/deepfake_vs_real_image_detection",
         framework="PyTorch / transformers (ViT)",

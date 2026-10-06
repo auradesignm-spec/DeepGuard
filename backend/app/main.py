@@ -23,6 +23,10 @@ from app.services.detector import (
     last_audit,
     last_quality,
     last_votes,
+    last_default_votes,
+    last_commfor_logit,
+    last_face_count,
+    last_crop_count,
 )
 from app.services.forensics import build_technical_info, run_forensics
 from app.services.news_detector import analyze_news_screenshot
@@ -244,7 +248,17 @@ def _safe_upload_name(name: Optional[str]) -> str:
     return "".join(ch for ch in base if ch.isalnum() or ch in " ._-()")[:200] or "upload"
 
 
-def _model_entries(votes: Dict[str, float]) -> List[Dict[str, Any]]:
+def _model_entries(
+    votes: Dict[str, float],
+    *,
+    default_votes: Optional[set] = None,
+    commfor_logit: Optional[float] = None,
+    face_count: Optional[int] = None,
+    crop_count: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Model cards. The extras (logit / counts / default flag) are
+    display-only and never feed the verdict engine."""
+    default_votes = default_votes or set()
     entries: List[Dict[str, Any]] = []
     for spec in registry.all_detectors():
         entry: Dict[str, Any] = {
@@ -259,6 +273,15 @@ def _model_entries(votes: Dict[str, float]) -> List[Dict[str, Any]]:
         if spec.id in votes:
             entry["status"] = "ok"
             entry["prob_fake"] = round(float(votes[spec.id]), 4)
+            if spec.id in default_votes:
+                entry["default_value"] = True
+            if spec.id == "commfor" and commfor_logit is not None:
+                entry["logit"] = round(float(commfor_logit), 6)
+            if spec.id == "face_v2":
+                if face_count is not None:
+                    entry["face_count"] = int(face_count)
+                if crop_count is not None:
+                    entry["crop_count"] = int(crop_count)
         elif not spec.is_available():
             entry["status"] = "error"
             entry["error"] = "Model not loaded in this process."
@@ -317,6 +340,7 @@ def analyze_full(file: UploadFile = File(...)):
 
     # 1. four detectors + fused probability (behavior unchanged)
     fusion = _step("detectors_fusion", lambda: analyze_image_forgery(image, raw_bytes=contents))
+    model_extras: Dict[str, Any] = {}
     if fusion is None:
         # never read another request's stashed votes/quality/provenance
         votes, quality, fused_fake = {}, {}, None
@@ -327,9 +351,15 @@ def analyze_full(file: UploadFile = File(...)):
         fused_fake = float(fusion[1])
         provenance_hit = last_provenance_hit()
         audit = last_audit()
+        model_extras = {
+            "default_votes": last_default_votes(),
+            "commfor_logit": last_commfor_logit(),
+            "face_count": last_face_count(),
+            "crop_count": last_crop_count(),
+        }
     quality_tier = quality.get("tier", "good")
 
-    record["models"] = _model_entries(votes)
+    record["models"] = _model_entries(votes, **model_extras)
 
     # 2. free algorithmic forensic checks
     forensics_result = _step("forensic_checks", lambda: run_forensics(image, contents))

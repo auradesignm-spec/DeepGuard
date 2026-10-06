@@ -29,7 +29,7 @@ export interface VerdictCardData {
   disagreement: { id: string; prob_fake: number; call: string }[];
   rule_id?: string;
   counts?: Record<string, number>;
-  models_banded?: { id: string; prob_fake: number; call: string }[];
+  models_banded?: { id: string; prob_fake: number; call: string; outlier?: boolean }[];
   fused_prob?: number | null;
   error?: string;
 }
@@ -46,6 +46,11 @@ export interface ModelEntry {
   prob_fake?: number;
   reason?: string;
   error?: string;
+  /* Display-only extras (never consumed by the verdict engine). */
+  logit?: number;
+  face_count?: number;
+  crop_count?: number;
+  default_value?: boolean;
 }
 
 export interface ForensicCheck {

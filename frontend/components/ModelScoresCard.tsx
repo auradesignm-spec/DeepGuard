@@ -11,12 +11,19 @@ export default function ModelScoresCard({ record }: { record: AnalysisRecord }) 
   const section = record.sections.model_scores;
   const banded = record.verdict.models_banded ?? [];
 
-  /* majority call among working detectors (for the outlier badge) */
-  const callCounts: Record<string, number> = {};
-  for (const b of banded) callCounts[b.call] = (callCounts[b.call] ?? 0) + 1;
-  const majority =
-    Object.entries(callCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-  const hasSplit = Object.keys(callCounts).length > 1;
+  /* Majority among DECISIVE calls only — an "uncertain" model neither votes
+   * for the majority nor can carry the outlier badge. The backend verdict
+   * engine already ships band.outlier with this rule; this local fallback
+   * keeps old records (without the field) consistent. */
+  const decisiveCounts: Record<string, number> = {};
+  for (const b of banded) {
+    if (b.call === "flag" || b.call === "clear")
+      decisiveCounts[b.call] = (decisiveCounts[b.call] ?? 0) + 1;
+  }
+  const top = Math.max(0, ...Object.values(decisiveCounts));
+  const leaders = Object.entries(decisiveCounts).filter(([, n]) => n === top);
+  const localMajority =
+    leaders.length === 1 && Object.keys(decisiveCounts).length > 1 ? leaders[0][0] : null;
 
   const callChip = (call?: string) => {
     if (call === "flag")
@@ -46,11 +53,17 @@ export default function ModelScoresCard({ record }: { record: AnalysisRecord }) 
         {record.models.map((model) => {
           const band = banded.find((b) => b.id === model.id);
           const isOutlier =
-            band && hasSplit && majority !== null && band.call !== majority && band.call !== "uncertain";
+            band != null &&
+            (band.outlier ??
+              (localMajority !== null &&
+                (band.call === "flag" || band.call === "clear") &&
+                band.call !== localMajority));
+          const hasResult = model.status === "ok" && model.prob_fake !== undefined;
           const pct =
             model.status === "ok" && model.prob_fake !== undefined
               ? Math.round(model.prob_fake * 1000) / 10
               : null;
+          const isUncertain = band?.call === "uncertain";
 
           return (
             <div
@@ -84,7 +97,7 @@ export default function ModelScoresCard({ record }: { record: AnalysisRecord }) 
                 </div>
               </div>
 
-              {model.status === "ok" && pct !== null ? (
+              {hasResult && pct !== null ? (
                 <>
                   <div className="w-full bg-[#040806] h-2.5 overflow-hidden p-0.5" role="meter"
                        aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}
@@ -101,6 +114,14 @@ export default function ModelScoresCard({ record }: { record: AnalysisRecord }) 
                     />
                   </div>
                   <p className="text-[10px] text-[#456355]">{t("ms_prob")}</p>
+                  {model.default_value && (
+                    <p className="text-[10px] text-[#ffe3a0] border border-[#ffc857]/40 bg-[#ffc857]/5 px-2 py-1">
+                      {t("ms_default_note")}
+                    </p>
+                  )}
+                  {isUncertain && (
+                    <p className="text-[10px] text-[#7da291]">{t("ms_uncertain_reason")}</p>
+                  )}
                 </>
               ) : (
                 <p className="text-xs text-[#7da291] flex items-center gap-1.5">
@@ -112,6 +133,60 @@ export default function ModelScoresCard({ record }: { record: AnalysisRecord }) 
                       : model.error || t("ms_error_generic")}
                 </p>
               )}
+
+              {/* ---- collapsible per-model details ---- */}
+              <details className="text-[10px] text-[#7da291]">
+                <summary className="cursor-pointer select-none inline-flex items-center gap-1.5 hover:text-[#8fffc9]">
+                  <CircleHelp className="w-3 h-3" />
+                  {t("ms_details")}
+                </summary>
+                <div className="mt-2 space-y-1 border-s-2 border-[#1d4534] ps-3">
+                  <p className="flex justify-between gap-3">
+                    <span>{t("ms_details_score4")}</span>
+                    <span className="font-mono tabular-nums" dir="ltr">
+                      {hasResult ? model.prob_fake?.toFixed(4) : t("ms_details_none")}
+                    </span>
+                  </p>
+                  <p className="flex justify-between gap-3">
+                    <span>{t("ms_details_logit")}</span>
+                    <span className="font-mono tabular-nums" dir="ltr">
+                      {model.logit !== undefined ? model.logit.toFixed(4) : t("ms_details_none")}
+                    </span>
+                  </p>
+                  <p className="flex justify-between gap-3">
+                    <span>{t("ms_details_weight")}</span>
+                    <span className="font-mono tabular-nums" dir="ltr">
+                      {model.weight != null ? model.weight : t("ms_details_none")}
+                    </span>
+                  </p>
+                  <p className="flex justify-between gap-3">
+                    <span>{t("ms_details_role")}</span>
+                    <span>
+                      {model.role === "primary"
+                        ? t("ms_role_primary")
+                        : model.role === "supporting"
+                          ? t("ms_role_supporting")
+                          : t("ms_details_none")}
+                    </span>
+                  </p>
+                  {model.id === "face_v2" && (
+                    <>
+                      <p className="flex justify-between gap-3">
+                        <span>{t("ms_details_faces")}</span>
+                        <span className="font-mono tabular-nums" dir="ltr">
+                          {model.face_count != null ? model.face_count : t("ms_details_none")}
+                        </span>
+                      </p>
+                      <p className="flex justify-between gap-3">
+                        <span>{t("ms_details_crops")}</span>
+                        <span className="font-mono tabular-nums" dir="ltr">
+                          {model.crop_count != null ? model.crop_count : t("ms_details_none")}
+                        </span>
+                      </p>
+                    </>
+                  )}
+                </div>
+              </details>
             </div>
           );
         })}
